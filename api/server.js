@@ -211,6 +211,23 @@ app.get("/debate/stream", async (req, res) => {
         `Stream [${debateId}] started: ${question.slice(0, 40)}...`
     );
 
+    (async () => {
+        const mcpUpdater = new NotionMCPClient();
+        try {
+            await mcpUpdater.connect();
+            await mcpUpdater.updatePageFormatted(page_id, {
+                Question: question,
+                Name: question,
+                Debate: question,
+            });
+            logger.info(`Wrote question to page properties for ${page_id.slice(0, 8)}`);
+        } catch (err) {
+            logger.warn(`Could not write question to page properties: ${err?.message || err}`);
+        } finally {
+            try { await mcpUpdater.disconnect(); } catch { }
+        }
+    })();
+
     const sendEvent = (eventName, data) => {
         res.write(`event: ${eventName}\n`);
         res.write(`data: ${JSON.stringify(data)}\n\n`);
