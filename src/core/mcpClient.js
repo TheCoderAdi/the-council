@@ -141,7 +141,27 @@ export class NotionMCPClient {
         }
     }
 
-    // Safe Tool Caller (never throws)
+    // ID normalization helper: strip URL query params and hyphenate 32-char uuids
+    _normalizeId(maybeId = "") {
+        if (!maybeId) return maybeId;
+        let s = String(maybeId || "");
+        // Strip Notion URL query params like "?v=..." and trailing fragments
+        const q = s.indexOf("?");
+        if (q !== -1) s = s.slice(0, q);
+        s = s.replace(/https?:\/\/[\w\.-]+\//, "");
+        // Extract 32 hex chars if present
+        const plain32 = s.match(/([0-9a-fA-F]{32})/);
+        if (plain32) {
+            const p = plain32[1];
+            return `${p.slice(0, 8)}-${p.slice(8, 12)}-${p.slice(12, 16)}-${p.slice(16, 20)}-${p.slice(20)}`;
+        }
+        // If already hyphenated uuid, return as-is (but remove accidental whitespace)
+        const hy = s.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+        if (hy) return hy[0];
+        return s;
+    }
+
+    // Safe Tool Caller
 
     async safeCallTool(toolName, args = {}) {
         const maxRetries = 3;
@@ -292,9 +312,10 @@ export class NotionMCPClient {
          * Tool: API-retrieve-a-page
          * Get a page's full properties
          */
+        const normalized = this._normalizeId(pageId);
         const result = await this.safeCallTool(
             "API-retrieve-a-page",
-            { page_id: pageId }
+            { page_id: normalized }
         );
 
         return this.#parse(result) || {};
@@ -305,9 +326,10 @@ export class NotionMCPClient {
          * Tool: API-get-block-children
          * Get all blocks from a page as plain text
          */
+        const normalized = this._normalizeId(pageId);
         const result = await this.safeCallTool(
             "API-get-block-children",
-            { block_id: pageId }
+            { block_id: normalized }
         );
 
         const parsed = this.#parse(result);
@@ -322,10 +344,11 @@ export class NotionMCPClient {
          * Tool: API-patch-page
          * Update page properties (Status, Vote, etc.)
          */
+        const normalized = this._normalizeId(pageId);
         const result = await this.safeCallTool(
             "API-patch-page",
             {
-                page_id: pageId,
+                page_id: normalized,
                 properties: properties,
             }
         );
@@ -339,10 +362,11 @@ export class NotionMCPClient {
          * Append blocks to a page
          * This is how agents write to Notion
          */
+        const normalized = this._normalizeId(blockId);
         const result = await this.safeCallTool(
             "API-patch-block-children",
             {
-                block_id: blockId,
+                block_id: normalized,
                 children: children,
             }
         );
