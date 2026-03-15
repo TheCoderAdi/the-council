@@ -217,7 +217,6 @@ app.get("/debate/stream", async (req, res) => {
             await mcpUpdater.connect();
             await mcpUpdater.updatePageFormatted(page_id, {
                 Question: question,
-                Name: question,
                 Debate: question,
             });
             logger.info(`Wrote question to page properties for ${page_id.slice(0, 8)}`);
