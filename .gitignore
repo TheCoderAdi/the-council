@@ -1,0 +1,30 @@
+# Node modules
+node_modules/
+
+# Logs
+logs/
+npm-debug.log*
+
+# Env files
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+
+# Notion MCP 
+_npx/
+
+# Scripts
+scripts/
+
+# Test files
+testMcp.js
+
+# Other
+package-lock.json   

@@ -1,0 +1,30 @@
+{
+  "name": "the-council",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "Multi-Agent AI Debate Arena powered by Notion MCP",
+  "main": "api/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node api/server.js",
+    "dev": "node --watch api/server.js",
+    "test:mcp": "node testMcp.js",
+    "lint": "eslint src/ api/"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@google/generative-ai": "^0.21.0",
+    "@notionhq/client": "^2.2.15",
+    "express": "^4.21.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "eventsource": "^2.0.2",
+    "winston": "^3.15.0",
+    "uuid": "^10.0.0",
+    "zod": "^3.23.8",
+    "openai": "^4.11.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0"
+  }
+}
