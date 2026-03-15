@@ -101,54 +101,8 @@ export class CouncilOrchestrator {
                     Status: "debating",
                 })
             );
-            // Inspect DB properties to populate per-item properties if available
-            try {
-                const dbProps = await mcp.getDatabaseProperties();
-                const updates = {};
-
-                for (let i = 0; i < items.length; i++) {
-                    const n = i + 1;
-                    const tryNames = [
-                        `Action Item ${n}`,
-                        `Action ${n}`,
-                        `ActionItem${n}`,
-                        `Action${n}`,
-                    ];
-
-                    const propName = tryNames.find((name) => Object.prototype.hasOwnProperty.call(dbProps, name));
-                    if (propName) {
-                        const pType = dbProps[propName].type;
-                        // If the property is a rich_text or title, write the item text.
-                        if (pType === "rich_text" || pType === "title") {
-                            updates[propName] = items[i];
-                        } else if (pType === "checkbox") {
-                            // Checkbox can't store text; mark it unchecked to indicate pending
-                            updates[propName] = false;
-                        } else {
-                            updates[propName] = items[i];
-                        }
-                    }
-
-                    const doneNames = [
-                        `Action Item ${n} Done`,
-                        `Action ${n} Done`,
-                        `ActionItem${n}Done`,
-                        `Action${n}Done`,
-                    ];
-
-                    const doneProp = doneNames.find((name) => Object.prototype.hasOwnProperty.call(dbProps, name));
-                    if (doneProp) {
-                        updates[doneProp] = false;
-                    }
-                }
-
-                if (Object.keys(updates).length > 0) {
-                    await this.#safeNotionCall(() => mcp.updatePageFormatted(pageId, updates));
-                    logger.info(`Wrote action items into page properties: ${Object.keys(updates).join(", ")}`);
-                }
-            } catch (err) {
-                logger.warn(`Failed to mirror action items into per-item properties: ${err?.message || err}`);
-            }
+            // NOTE: per-item property mirroring requires action items to exist.
+            // We'll perform per-item mirroring after consensus when action items are available.
 
             // Rounds
             for (let round = 1; round <= state.maxRounds; round++) {
@@ -252,6 +206,62 @@ export class CouncilOrchestrator {
                     }
                 } catch (err) {
                     logger.warn(`Failed to write action items to page property: ${err?.message || err}`);
+                }
+
+                // Try to mirror each action item into per-item DB properties if the
+                // database exposes columns like `Action Item 1`, `Action 1`, or a
+                // matching `... Done` checkbox. This is best-effort and will not
+                // block the debate flow.
+                try {
+                    const dbProps = await mcp.getDatabaseProperties();
+                    const updates = {};
+
+                    for (let i = 0; i < items.length; i++) {
+                        const n = i + 1;
+                        const tryNames = [
+                            `Action Item ${n}`,
+                            `Action ${n}`,
+                            `ActionItem${n}`,
+                            `Action${n}`,
+                        ];
+
+                        const propName = tryNames.find((name) => Object.prototype.hasOwnProperty.call(dbProps, name));
+                        if (propName) {
+                            const pType = dbProps[propName].type;
+                            if (pType === "rich_text" || pType === "title") {
+                                updates[propName] = items[i];
+                            } else if (pType === "checkbox") {
+                                updates[propName] = false;
+                            } else {
+                                updates[propName] = items[i];
+                            }
+                        }
+
+                        const doneNames = [
+                            `Action Item ${n} Done`,
+                            `Action ${n} Done`,
+                            `ActionItem${n}Done`,
+                            `Action${n}Done`,
+                        ];
+
+                        const doneProp = doneNames.find((name) => Object.prototype.hasOwnProperty.call(dbProps, name));
+                        if (doneProp) {
+                            updates[doneProp] = false;
+                        }
+                    }
+
+                    if (Object.keys(updates).length > 0) {
+                        const genericNames = ["Action Item", "Action Items", "Action", "Has Action Items", "ActionItem"];
+                        const genericProp = genericNames.find((n) => Object.prototype.hasOwnProperty.call(dbProps, n));
+                        if (genericProp && dbProps[genericProp]?.type === "checkbox") {
+                            updates[genericProp] = true;
+                        }
+
+                        await this.#safeNotionCall(() => mcp.updatePageFormatted(pageId, updates));
+                        logger.info(`Wrote action items into page properties: ${Object.keys(updates).join(", ")}`);
+                    }
+                } catch (err) {
+                    logger.warn(`Failed to mirror action items into per-item properties: ${err?.message || err}`);
                 }
 
                 yield createStreamEvent({
